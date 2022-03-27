@@ -1,72 +1,71 @@
 package com.example.warehouseapp.service;
 
 import com.example.warehouseapp.dto.ApiResponse;
-import com.example.warehouseapp.dto.OutputDTO;
 import com.example.warehouseapp.dto.OutputProductDTO;
+import com.example.warehouseapp.dto.OutputDTO;
 import com.example.warehouseapp.entity.*;
+import com.example.warehouseapp.entity.Currency;
 import com.example.warehouseapp.repository.*;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
+import lombok.SneakyThrows;
 import org.springframework.stereotype.Service;
 
-import java.text.ParseException;
+
 import java.text.SimpleDateFormat;
-import java.util.Date;
-import java.util.Optional;
-import java.util.UUID;
+import java.util.*;
 
 @Service
+@RequiredArgsConstructor
 public class OutputService {
 
-    @Autowired
-    OutputRepository outputRepository;
-    @Autowired
-    ProductRepository productRepository;
-    @Autowired
-    ClientRepository clientRepository;
-    @Autowired
-    WarehouseRepository warehouseRepository;
-    @Autowired
-    CurrencyRepository currencyRepository;
-    @Autowired
-    OutputPrroductRepository outputPrroductRepository;
-    public ApiResponse addoutput(OutputDTO outputDTO) throws ParseException {
+    final OutputRepository outputRepository;
+    final ProductRepository productRepository;
+    final ClientRepository clientRepository;
+    final WarehouseRepository warehouseRepository;
+    final CurrencyRepository currencyRepository;
+    final OutputPrroductRepository outputPrroductRepository;
+
+    @SneakyThrows
+    public ApiResponse add(OutputDTO dto) {
         Output output = new Output();
         output.setCode(UUID.randomUUID().toString());
         SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyy-MM-dd");
-        String format = simpleDateFormat.format(output.getDate());
+        String format = simpleDateFormat.format(dto.getDate());
         Date date1 = new SimpleDateFormat("yyyy-MM-dd").parse(format);
         output.setDate(date1);
         output.setFactureNumber(UUID.randomUUID().toString());
 
-
-        Optional<Client> byId = clientRepository.findById(outputDTO.getClientId());
-        if (byId.isEmpty())return new ApiResponse("Eror",false);
-        output.setClient(byId.get());
-
-        Optional<Warehouse> byId1 = warehouseRepository.findById(outputDTO.getWarehouseId());
-        if (byId1.isEmpty())return new ApiResponse("Eror",false);
-        output.setWarehouse(byId1.get());
-
-        Optional<Currency> byId2 = currencyRepository.findById(outputDTO.getCurrencyId());
-        if (byId2.isEmpty())return new ApiResponse("Eror",false);
-        output.setCurrency(byId2.get());
+        Optional<Currency> optionalCurrency = currencyRepository.findById(dto.getCurrencyId());
+        if (optionalCurrency.isEmpty()) return new ApiResponse("NOT", false);
+        output.setCurrency(optionalCurrency.get());
 
 
-        for (OutputProductDTO outputProductDTO : outputDTO.getOutputProductDTOList()) {
-            OutputProduct outputProduct=new OutputProduct();
+        Optional<Client> optionalClient = clientRepository.findById(dto.getClientId());
+        if (optionalClient.isEmpty()) return new ApiResponse("NOT", false);
+        output.setClient(optionalClient.get());
+
+
+        Optional<Warehouse> optionalWarehouse = warehouseRepository.findById(dto.getWarehouseId());
+        if (optionalWarehouse.isEmpty()) return new ApiResponse("NOT", false);
+        output.setWarehouse(optionalWarehouse.get());
+        outputRepository.save(output);
+
+
+        List<OutputProductDTO> outputProductDTOList = dto.getOutputProducts();
+
+        for (OutputProductDTO outputProductDTO : outputProductDTOList) {
+            OutputProduct outputProduct = new OutputProduct();
             outputProduct.setAmount(outputProductDTO.getAmount());
             outputProduct.setPrice(outputProductDTO.getPrice());
 
 
+            Optional<Product> optionalProduct = productRepository.findById(outputProductDTO.getProductId());
+            if (optionalProduct.isEmpty()) return new ApiResponse("NOT", false);
+            outputProduct.setProduct(optionalProduct.get());
 
-            Optional<Product> byId3 = productRepository.findById(outputProductDTO.getProductId());
-            if (byId3.isEmpty())return new ApiResponse("Eror",false);
-            outputProduct.setProduct(byId3.get());
             outputProduct.setOutput(output);
             outputPrroductRepository.save(outputProduct);
-
         }
-        return new ApiResponse("Save",true);
-
+        return new ApiResponse("Save", true);
     }
 }
